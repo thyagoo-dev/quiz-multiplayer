@@ -23,8 +23,8 @@ io.on('connection', (socket) => {
       currentQuestionIndex: 0,
       status: 'waiting', 
       answersThisRound: 0,
-      timerInterval: null, // Armazena o relógio da sala
-      timeLeft: 20         // 20 segundos por pergunta
+      timerInterval: null, 
+      timeLeft: 20         
     };
 
     socket.join(roomCode);
@@ -62,7 +62,6 @@ io.on('connection', (socket) => {
       room.answersThisRound += 1;
 
       const currentQ = room.questions[room.currentQuestionIndex];
-      // Quanto mais rápido responde, mais pontos ganha (Máx 20, Min 5)
       if (answer === currentQ.correta) {
         const timeBonus = Math.max(0, room.timeLeft);
         player.score += (10 + timeBonus); 
@@ -133,8 +132,8 @@ io.on('connection', (socket) => {
     const room = rooms[roomCode];
     if (!room) return;
 
-    clearInterval(room.timerInterval); // Limpa relógio anterior, se houver
-    room.timeLeft = 20; // 20 segundos por rodada
+    clearInterval(room.timerInterval); 
+    room.timeLeft = 20; 
     io.to(roomCode).emit('timerUpdate', room.timeLeft);
 
     room.timerInterval = setInterval(() => {
@@ -156,18 +155,19 @@ io.on('connection', (socket) => {
     };
     
     io.to(roomCode).emit('newQuestion', questionPayload);
-    startTimer(roomCode); // Inicia o tempo assim que envia a pergunta
+    startTimer(roomCode); 
   }
 
   function showResults(roomCode) {
     const room = rooms[roomCode];
-    clearInterval(room.timerInterval); // Para o relógio
+    clearInterval(room.timerInterval); 
     room.status = 'results';
     const correctAnswer = room.questions[room.currentQuestionIndex].correta;
     io.to(roomCode).emit('roundResults', { correctAnswer, players: room.players });
   }
 });
 
-server.listen(3001, () => {
-  console.log('Servidor WebSocket rodando na porta 3001');
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
