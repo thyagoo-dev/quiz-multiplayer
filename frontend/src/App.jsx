@@ -13,8 +13,8 @@ export default function App() {
   
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [correctAnswer, setCorrectAnswer] = useState(null);
+  const [timeLeft, setTimeLeft] = useState(null);
   
-  // Nova lógica de seleção de duas etapas
   const [selectedOption, setSelectedOption] = useState(null);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
@@ -39,20 +39,25 @@ export default function App() {
     socket.on('newQuestion', (questionData) => {
       setCurrentQuestion(questionData);
       setCorrectAnswer(null);
-      // Reseta completamente a seleção do frontend para o novo round
       setSelectedOption(null);
       setIsConfirmed(false); 
       setAppState('playing');
     });
 
+    socket.on('timerUpdate', (time) => {
+      setTimeLeft(time);
+    });
+
     socket.on('roundResults', ({ correctAnswer, players: updatedPlayers }) => {
       setCorrectAnswer(correctAnswer);
       setPlayers(updatedPlayers);
+      setTimeLeft(null); // Limpa o tempo na tela de resultado
       setAppState('results');
     });
 
     socket.on('gameOver', (finalPlayers) => {
       setPlayers(finalPlayers);
+      setTimeLeft(null);
       setAppState('gameover');
     });
 
@@ -64,6 +69,7 @@ export default function App() {
       socket.off('playerAnswered');
       socket.off('youAreHost');
       socket.off('newQuestion');
+      socket.off('timerUpdate');
       socket.off('roundResults');
       socket.off('gameOver');
       socket.off('error');
@@ -121,6 +127,7 @@ export default function App() {
     setIsHost(false);
     setSelectedOption(null);
     setIsConfirmed(false);
+    setTimeLeft(null);
   };
 
   return (
@@ -213,6 +220,14 @@ export default function App() {
 
         {appState === 'playing' && currentQuestion && (
           <div className="w-full max-w-4xl w-full flex flex-col items-center">
+            
+            {/* Mostrador de Tempo */}
+            {timeLeft !== null && (
+              <div className={`text-4xl md:text-5xl font-black mb-8 transition-colors duration-300 ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-blue-400'}`}>
+                {timeLeft}s
+              </div>
+            )}
+
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-10 leading-relaxed text-white">
               {currentQuestion.pergunta}
             </h2>

@@ -22,7 +22,9 @@ io.on('connection', (socket) => {
       questions: questions,
       currentQuestionIndex: 0,
       status: 'waiting', 
-      answersThisRound: 0
+      answersThisRound: 0,
+      timerInterval: null, // Armazena o relógio da sala
+      timeLeft: 20         // 20 segundos por pergunta
     };
 
     socket.join(roomCode);
@@ -60,8 +62,10 @@ io.on('connection', (socket) => {
       room.answersThisRound += 1;
 
       const currentQ = room.questions[room.currentQuestionIndex];
+      // Quanto mais rápido responde, mais pontos ganha (Máx 20, Min 5)
       if (answer === currentQ.correta) {
-        player.score += 10;
+        const timeBonus = Math.max(0, room.timeLeft);
+        player.score += (10 + timeBonus); 
       }
 
       io.to(roomCode).emit('playerAnswered', player.id);
@@ -78,10 +82,7 @@ io.on('connection', (socket) => {
       room.currentQuestionIndex += 1;
       room.answersThisRound = 0;
       
-      // Reseta o status de resposta de todos no backend
       room.players.forEach(p => p.hasAnswered = false); 
-      
-      // CORREÇÃO AQUI: Avisa o frontend para limpar a tag "RESPONDIDO"
       io.to(roomCode).emit('updatePlayers', room.players);
       
       if (room.currentQuestionIndex >= room.questions.length) {
@@ -111,23 +112,39 @@ io.on('connection', (socket) => {
     if (playerIndex !== -1) {
       room.players.splice(playerIndex, 1);
       
-      // Se era o último, deleta a sala
       if (room.players.length === 0) {
+        clearInterval(room.timerInterval);
         delete rooms[roomCode];
       } else {
-        // Se o host saiu, passa o host pro próximo
         if (room.host === socketId) {
           room.host = room.players[0].id;
           io.to(room.host).emit('youAreHost');
         }
         io.to(roomCode).emit('updatePlayers', room.players);
         
-        // Se alguém saiu durante a partida, verifica se o round deve acabar
         if (room.status === 'playing' && room.answersThisRound >= room.players.length) {
            showResults(roomCode);
         }
       }
     }
+  }
+
+  function startTimer(roomCode) {
+    const room = rooms[roomCode];
+    if (!room) return;
+
+    clearInterval(room.timerInterval); // Limpa relógio anterior, se houver
+    room.timeLeft = 20; // 20 segundos por rodada
+    io.to(roomCode).emit('timerUpdate', room.timeLeft);
+
+    room.timerInterval = setInterval(() => {
+      room.timeLeft -= 1;
+      io.to(roomCode).emit('timerUpdate', room.timeLeft);
+
+      if (room.timeLeft <= 0) {
+        showResults(roomCode);
+      }
+    }, 1000);
   }
 
   function sendQuestion(roomCode) {
@@ -137,11 +154,14 @@ io.on('connection', (socket) => {
       pergunta: q.pergunta,
       alternativas: q.alternativas
     };
+    
     io.to(roomCode).emit('newQuestion', questionPayload);
+    startTimer(roomCode); // Inicia o tempo assim que envia a pergunta
   }
 
   function showResults(roomCode) {
     const room = rooms[roomCode];
+    clearInterval(room.timerInterval); // Para o relógio
     room.status = 'results';
     const correctAnswer = room.questions[room.currentQuestionIndex].correta;
     io.to(roomCode).emit('roundResults', { correctAnswer, players: room.players });
