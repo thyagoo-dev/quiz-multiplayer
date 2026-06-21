@@ -66,4 +66,4 @@ CORRETA: [Letra]
 \`\`\`
 
 ---
-*Desenvolvido por Cícero Thyago | TH16 Technologies*
+*Desenvolvido por Cícero Thyago | Quanthy Technology*
